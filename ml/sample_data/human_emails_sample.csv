@@ -1,0 +1,6 @@
+subject,body,source,label
+"URGENT: Your account will be suspended","Dear user, your account will be suspended within 24 hours unless you verify your credentials immediately at http://example.com/verify. Act now.","public_dataset",phishing
+"Your invoice #4821 is past due","Dear customer, invoice #4821 remains unpaid. Please settle the outstanding balance immediately to avoid service interruption. This is your last chance.","public_dataset",phishing
+"IT Security Alert: Unauthorized access detected","We detected unauthorized access attempts on your account. An official notice has been filed. Verify your identity now or your access will be revoked.","public_dataset",phishing
+"Team lunch this Friday","Hi team, please let me know by Thursday if you can join the team lunch this Friday at noon. Thanks!","internal",legitimate
+"Monthly payroll confirmation","Your monthly payroll has been processed successfully. No action is required.","internal",legitimate

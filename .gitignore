@@ -1,8 +1,11 @@
 node_modules/
 __pycache__/
-.env
+# .env
 venv/
 .next/
 *.pyc
 .pytest_cache/
 .vscode/
+ml/models/
+ml/hf-cache/
+backend/logs/
