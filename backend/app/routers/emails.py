@@ -41,6 +41,14 @@ def _get_email(db: Session, source: EmailSource, email_id: int):
     return email.subject + "\n" + email.body
 
 
+def _reference_phishing_texts(db: Session) -> list[str]:
+    """The phishing corpus every email's similarity score is measured against."""
+    return [
+        f"{e.subject}\n{e.body}"
+        for e in db.query(HumanEmail).filter(HumanEmail.label == EmailLabel.PHISHING).all()
+    ]
+
+
 # ──────────────────────────────────────────────
 # Human emails
 # ──────────────────────────────────────────────
@@ -209,11 +217,11 @@ def evaluate_email(
     from evaluator import evaluate_email as compute_scores
 
     text = _get_email(db, source, email_id)
-    ref_texts = [
-        f"{e.subject}\n{e.body}"
-        for e in db.query(HumanEmail).filter(HumanEmail.label == EmailLabel.PHISHING).all()
-    ]
+    ref_texts = _reference_phishing_texts(db)
     scores = compute_scores(text, ref_texts)
+
+    # Idempotent: replace any existing scores for this email
+    db.query(EvalScore).filter_by(email_id=email_id, email_source=source).delete()
 
     score = EvalScore(
         email_id=email_id,
@@ -234,10 +242,7 @@ def evaluate_all(db: Session = Depends(get_db)):
     """Evaluate every email that has no eval_scores row yet."""
     from evaluator import evaluate_email as compute_scores
 
-    ref_texts = [
-        f"{e.subject}\n{e.body}"
-        for e in db.query(HumanEmail).filter(HumanEmail.label == EmailLabel.PHISHING).all()
-    ]
+    ref_texts = _reference_phishing_texts(db)
     counts = {"generated": 0, "human": 0, "scores_created": 0}
 
     for source, model in (
@@ -285,6 +290,9 @@ def detect_email(
 
     text = _get_email(db, source, email_id)
     verdict, confidence = predict(text)
+
+    # Idempotent: replace any existing detection result for this email
+    db.query(DetectionResult).filter_by(email_id=email_id, email_source=source).delete()
 
     result = DetectionResult(
         email_id=email_id,

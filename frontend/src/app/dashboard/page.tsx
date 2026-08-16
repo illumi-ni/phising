@@ -87,17 +87,26 @@ export default function DashboardPage() {
 
   const scoreChartData = useMemo(() => {
     if (!data) return [];
-    const metrics: { key: keyof ScoreSummary; label: string }[] = [
-      { key: "readability_score", label: "Readability" },
-      { key: "sentiment_score", label: "Sentiment" },
-      { key: "persuasion_score", label: "Persuasion" },
-      { key: "similarity_score", label: "Similarity" },
+    // Readability is Flesch (0-100); the other three are 0-1. Plot everything on
+    // a 0-1 axis so the small scores stay visible, and keep the raw values for
+    // the tooltip.
+    const metrics: { key: keyof ScoreSummary; label: string; divisor: number }[] = [
+      { key: "readability_score", label: "Readability (÷100)", divisor: 100 },
+      { key: "sentiment_score", label: "Sentiment", divisor: 1 },
+      { key: "persuasion_score", label: "Persuasion", divisor: 1 },
+      { key: "similarity_score", label: "Similarity", divisor: 1 },
     ];
-    return metrics.map((m) => ({
-      metric: m.label,
-      Generated: data.scores.generated?.[m.key] ?? 0,
-      Human: data.scores.human?.[m.key] ?? 0,
-    }));
+    return metrics.map((m) => {
+      const gen = data.scores.generated?.[m.key] ?? 0;
+      const human = data.scores.human?.[m.key] ?? 0;
+      return {
+        metric: m.label,
+        Generated: gen / m.divisor,
+        Human: human / m.divisor,
+        rawGenerated: gen,
+        rawHuman: human,
+      };
+    });
   }, [data]);
 
   const tacticChartData = useMemo(() => {
@@ -216,8 +225,16 @@ export default function DashboardPage() {
                 <BarChart data={scoreChartData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="metric" />
-                  <YAxis domain={[0, 100]} />
-                  <Tooltip />
+                  <YAxis domain={[0, 1]} />
+                  <Tooltip
+                    formatter={(value, name, item) => [
+                      (name === "Generated"
+                        ? item.payload.rawGenerated
+                        : item.payload.rawHuman
+                      ).toFixed(2),
+                      name,
+                    ]}
+                  />
                   <Legend />
                   <Bar dataKey="Generated" fill="#6366f1" />
                   <Bar dataKey="Human" fill="#10b981" />
