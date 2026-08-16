@@ -113,11 +113,12 @@ def train(
     pipeline.fit(X_train, y_train)
 
     y_pred = pipeline.predict(X_test)
+    # float(): sklearn returns numpy scalars, which are not JSON-serializable
     metrics = {
-        "accuracy": round(accuracy_score(y_test, y_pred), 3),
-        "precision": round(precision_score(y_test, y_pred, zero_division=0), 3),
-        "recall": round(recall_score(y_test, y_pred, zero_division=0), 3),
-        "f1": round(f1_score(y_test, y_pred, zero_division=0), 3),
+        "accuracy": round(float(accuracy_score(y_test, y_pred)), 3),
+        "precision": round(float(precision_score(y_test, y_pred, zero_division=0)), 3),
+        "recall": round(float(recall_score(y_test, y_pred, zero_division=0)), 3),
+        "f1": round(float(f1_score(y_test, y_pred, zero_division=0)), 3),
         "train_size": int(len(df)),
         "note": note,
         "used_public_dataset": used_public,
@@ -138,15 +139,34 @@ def train(
     return metrics
 
 
-def predict(text: str) -> tuple[str, float]:
-    """Return (verdict, confidence) where verdict in {'phishing','legitimate'}."""
+_cached_model = None
+_cached_mtime = None
+
+
+def _load_model():
+    """Load the pickled pipeline, reusing it across calls until it is retrained.
+
+    /detect-all predicts one email at a time; without this every email would
+    re-read the pickle from disk.
+    """
+    global _cached_model, _cached_mtime
+
     if not os.path.isfile(MODEL_PATH):
         raise RuntimeError(
             "Classifier not trained yet. Train it first — see README "
             "'Step 7 — Train the detection classifier'."
         )
-    with open(MODEL_PATH, "rb") as f:
-        pipeline = pickle.load(f)
+    mtime = os.path.getmtime(MODEL_PATH)
+    if _cached_model is None or _cached_mtime != mtime:
+        with open(MODEL_PATH, "rb") as f:
+            _cached_model = pickle.load(f)
+        _cached_mtime = mtime
+    return _cached_model
+
+
+def predict(text: str) -> tuple[str, float]:
+    """Return (verdict, confidence) where verdict in {'phishing','legitimate'}."""
+    pipeline = _load_model()
     proba = pipeline.predict_proba([text])[0]
     classes = pipeline.classes_
     idx = int(proba.argmax())
